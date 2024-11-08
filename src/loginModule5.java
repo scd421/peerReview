@@ -40,57 +40,77 @@ public class loginModule5 {
         }
     }
 
+    private static boolean doesUserExist(String username) {
+        // Version 4.0 - Makes sure username isnt already in use
+        for(String[] user : database) {
+            if(user[0].equals(username)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void setDefaultPassword(String newUsername, String newPassword) {
+        try {
+            newPassword = passwordHandler.createDefaultPassword();
+            String encryptedPassword = passwordHandler.encryptVigenere(passwordHandler.alphaKey, newPassword);
+            addUserToDatabase(newUsername, encryptedPassword);
+            System.out.println("A default password will be provided to you through email.");
+            System.out.println("Email: " + newPassword);
+            System.out.println("User registered successfully with a default password!");
+        } catch (passwordHandler.defaultPasswordException e) {
+            System.out.println("Failed to create a default password: " + e.getMessage());
+        }
+    }
+
+    private static boolean validatePassword(String newUsername, String newPassword) {
+        try {
+            if (passwordHandler.isValidPassword(newPassword)) {
+                String encryptedPassword = passwordHandler.encryptVigenere(passwordHandler.alphaKey, newPassword);
+                addUserToDatabase(newUsername, encryptedPassword);
+                System.out.println("User registered successfully with your entered password!");
+                return true;
+            }
+            System.out.println("Invalid password. Make sure it follows the password policy:\n" + getPasswordPolicy());
+        } catch (passwordHandler.passwordPolicyException | passwordHandler.passwordValidationException e) {
+            System.out.println("Password validation failed: " + e.getMessage());
+        }
+        return false;
+    }
+
+    private static void setPassword(String newUsername, char[] passwordArray, Console console) {
+        int passwordAttempts = 0;
+        String newPassword = null;
+
+        while(passwordAttempts < 2) {
+            // Convert initial input to String and test if it is valid
+            newPassword = new String(passwordArray);
+            if(validatePassword(newUsername, newPassword)) return; // If valid, end the loop
+            
+            // Increment attempts if password is invalid
+            passwordAttempts++;
+
+            // While there are attempts left, ask the user to enter a new password again
+            if(passwordAttempts < 2) {
+                passwordArray = console.readPassword("Create a new password: ");
+            }
+        }
+        // After there are no attempts left, create the default password
+        setDefaultPassword(newUsername, newPassword);
+    }
+
     // Version 4.0 - Register new users
     private static void registerUser(Console console) {
         System.out.println("User Registration");
 
         String newUsername = console.readLine("Enter a new username: ");
-        // Version 4.0 - Makes sure username isnt already in use
-        for (String[] user : database) {
-            if (user[0].equals(newUsername)) {
-                System.out.println("Username is already taken. Please try a different one.");
-                return;
-            }
+        if(doesUserExist(newUsername)) {
+            System.out.println("Username is already taken. Please try a different one.");
+            return;
         }
 
-        int passwordAttempts = 0;
-        String newPassword = null;
-
-        while (passwordAttempts < 3) {
-            char[] passwordArray = console.readPassword("Create a new password: ");
-            newPassword = new String(passwordArray);
-
-            // Version 5.0 Exception handling
-            try {
-                if (passwordHandler.isValidPassword(newPassword)) {
-                    String encryptedPassword = passwordHandler.encryptVigenere(passwordHandler.alphaKey, newPassword);
-                    addUserToDatabase(newUsername, encryptedPassword);
-                    System.out.println("User registered successfully with your entered password!");
-                    return;
-                } else {
-                    passwordAttempts++;
-                    System.out.println("Invalid password. Make sure it follows the password policy:\n" + getPasswordPolicy());
-                }
-            } catch (passwordHandler.passwordPolicyException | passwordHandler.passwordValidationException e) {
-                passwordAttempts++;
-                System.out.println("Password validation failed: " + e.getMessage());
-            }
-        }
-        // Version 4.0 - assigns default password after 2 failed attempts
-        if (passwordAttempts == 3) {
-
-            // Version 5.0 Exception handling
-            try {
-                newPassword = passwordHandler.createDefaultPassword();
-                String encryptedPassword = passwordHandler.encryptVigenere(passwordHandler.alphaKey, newPassword);
-                addUserToDatabase(newUsername, encryptedPassword);
-                System.out.println("A default password will be provided to you through email.");
-                System.out.println("Email: " + newPassword);
-                System.out.println("User registered successfully with a default password!");
-            } catch (passwordHandler.defaultPasswordException e) {
-                System.out.println("Failed to create a default password: " + e.getMessage());
-            }
-        }
+        char[] passwordArray = console.readPassword("Create a new password: ");
+        setPassword(newUsername, passwordArray, console);
     }
 
     // Version 4.0 - Add new user to the database
